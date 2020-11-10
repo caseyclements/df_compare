@@ -22,7 +22,7 @@ The value of that key (e.g. 'nrows') would be a string description (e.g. 'observ
 
 If one is testing functionality that produces a dataframe, and one can create one to compare it to... 
 
-pytest_kit.py automatically injects N separate pytests into a test module (test_<name>,py)
+pytest_kit.py automatically injects N separate pytests into a test module (test_<name>.py)
 simply by doing the following 2 things.
 
 1. Create two pytest fixtures: df_observed, and df_expected
