@@ -7,26 +7,35 @@ def describe_row_diffs(df_obs, df_exp):
 
 
 def describe_column_diffs(cols_obs, cols_exp):
-    cols_not_in_exp = cols_obs - cols_exp
-    cols_not_in_obs = cols_exp - cols_obs
+    cols_not_in_exp = sorted(cols_obs - cols_exp)
+    cols_not_in_obs = sorted(cols_exp - cols_obs)
     return f'cols_not_in_obs: {cols_not_in_obs}. cols_not_in_exp: {cols_not_in_exp}.'
 
 
-def df_compare(df_obs, df_exp, *args, **kwargs):
+def describe_dtype_diffs(df_dtypes_diff, n_rows=5):
+    return f'first {n_rows} rows of dtype diffs:\n {repr(df_dtypes_diff.iloc[:n_rows])}'
+
+
+def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
     """
     TODO Docstring
-    """
 
-    # TODO IMPLEMENT
-    #  1. Number of rows
-    #  2. Column names
-    #  3. dtypes
-    #  4. Index
-    #  5. Integers
-    #  6. Floats
-    #  7. Datetimes
-    #  8. Objects (typically strings)
-    #  9. NaNs
+    :param df_obs: (DataFrame) 1st to compare
+    :param df_exp: (DataFrame) 2nd to compare
+    :param n_show: number of examples used to preview differences (typically rows)
+    :return: (dict) dictionary describing differences.
+
+    TODO IMPLEMENT
+      4. Index
+      5. Integers
+      6. Floats
+      7. Datetimes
+      8. Objects (typically strings)
+      9. NaNs
+
+    As we proceed with tests, in order for further tests to make sense,
+    we take the intersections across axes. Of columns first. Then optionally, of rows.
+    """
 
     diffs = {}
     assert isinstance(df_obs, pd.DataFrame)
@@ -38,12 +47,27 @@ def df_compare(df_obs, df_exp, *args, **kwargs):
     if n_rows_obs != n_rows_exp:
         diffs['rows'] = describe_row_diffs(df_obs, df_exp)
 
-    # 2. Column Names
+    # 2. Columns
     cols_obs = set(df_obs.columns)
     cols_exp = set(df_exp.columns)
-    if cols_obs != cols_obs:
+    if cols_obs != cols_exp:
         diffs['columns'] = describe_column_diffs(cols_obs, cols_exp)
 
-    return diffs
+    #  Continue with Intersection of columns
+    if cols_obs != cols_obs:
+        cols_common = cols_obs.intersection(cols_exp)
+        dfx_obs = df_obs[cols_common]
+        dfx_exp = df_exp[cols_common]
+    else:
+        dfx_obs = df_obs
+        dfx_exp = df_exp
 
+    # 3. dtypes
+    df_dtypes = pd.concat([dfx_obs.dtypes, dfx_exp.dtypes], axis=1)
+    df_dtypes.columns = ['obs', 'exp']
+    df_dtypes_diff = df_dtypes.loc[df_dtypes.obs != df_dtypes.exp]
+    if len(df_dtypes_diff) > 0:
+        diffs['dtypes'] = describe_dtype_diffs(df_dtypes_diff, n_rows=n_show)
+
+    return diffs
 
