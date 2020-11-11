@@ -16,6 +16,12 @@ def describe_dtype_diffs(df_dtypes_diff, n_rows=5):
     return f'first {n_rows} rows of dtype diffs:\n {repr(df_dtypes_diff.iloc[:n_rows])}'
 
 
+def describe_index_diffs(index_obs, index_exp):
+    idx_not_in_exp = index_obs - index_exp
+    idx_not_in_obs = index_exp - index_obs
+    return f'idx_not_in_obs: {idx_not_in_obs}. idx_not_in_exp: {idx_not_in_exp}.'
+
+
 def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
     """
     TODO Docstring
@@ -26,7 +32,6 @@ def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
     :return: (dict) dictionary describing differences.
 
     TODO IMPLEMENT
-      4. Index
       5. Integers
       6. Floats
       7. Datetimes
@@ -68,6 +73,16 @@ def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
     df_dtypes_diff = df_dtypes.loc[df_dtypes.obs != df_dtypes.exp]
     if len(df_dtypes_diff) > 0:
         diffs['dtypes'] = describe_dtype_diffs(df_dtypes_diff, n_rows=n_show)
+
+    # 4. Index
+    index_obs = set(df_obs.index)
+    index_exp = set(df_exp.index)
+    if ('rows' in diffs) or (index_obs != index_exp):
+        diffs['index'] = describe_index_diffs(index_obs, index_exp)
+        #  Continue with Intersection of columns
+        index_common = index_obs.intersection(index_exp)
+        dfx_obs = dfx_obs.loc[index_common]
+        dfx_exp = dfx_exp.loc[index_common]
 
     return diffs
 

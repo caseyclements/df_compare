@@ -52,3 +52,18 @@ def test_dtypes(base_df):
     assert 'rows' not in diffs
     assert 'columns' not in diffs
     assert diffs.get('dtypes') is not None
+
+
+def test_index(base_df):
+    df_exp = base_df.copy()
+    df_exp = df_exp.set_index('s')
+
+    df_obs = base_df.copy()
+    df_obs['s'].iloc[1] = '3'
+    df_obs = df_obs.set_index('s')
+
+    diffs = df_compare(df_obs=df_obs, df_exp=df_exp)
+    assert 'rows' not in diffs
+    assert 'columns' not in diffs
+    assert diffs.get('index') is not None
+    assert '3' in diffs['index']
