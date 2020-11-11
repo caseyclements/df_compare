@@ -2,7 +2,11 @@ from df_compare import df_compare
 import pandas as pd
 import numpy as np
 import pytest
+import warnings
+import logging
+logging.basicConfig(level=logging.WARNING)
 
+warnings.filterwarnings(action='ignore', category=pd.core.common.SettingWithCopyWarning)
 
 @pytest.fixture(scope='session')
 def base_dict():
@@ -24,14 +28,26 @@ def base_df(base_dict):
 
 def test_nrows(base_df):
     """ Test number of rows when same, different, and its description"""
+    # Match
     df_obs = base_df.copy()
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert 'rows' not in diffs
 
+    # Duplicate values in index
     df_obs2 = pd.concat([df_obs, base_df])
     diffs2 = df_compare(df_obs=df_obs2, df_exp=base_df)
-    desc = diffs2.get('rows')
-    assert desc == f'df_obs has {len(df_obs2)}. df_exp has {len(base_df)}'
+    assert 'rows' in diffs2
+    assert 'index' in diffs2
+    assert not diffs2['complete']
+    assert diffs2['rows'] == f'rows differ: df_obs has {len(df_obs2)}. df_exp has {len(base_df)}'
+
+    # Extra rows, but some match index values
+    df_obs3 = df_obs2.reset_index(drop=True)
+    diffs3 = df_compare(df_obs=df_obs3, df_exp=base_df)
+    assert 'rows' in diffs3
+    assert 'index' in diffs3
+    assert 'int' not in diffs3
+    assert diffs3['complete']
 
 
 def test_columns(base_df):
@@ -40,8 +56,7 @@ def test_columns(base_df):
 
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert 'rows' not in diffs
-    assert diffs.get('columns') is not None
-    assert diffs['columns'] == f"cols_not_in_obs: []. cols_not_in_exp: ['s_copy']."
+    assert diffs['columns'] == f"columns differ: cols_not_in_obs: []. cols_not_in_exp: ['s_copy']."
 
 
 def test_dtypes(base_df):
@@ -67,3 +82,15 @@ def test_index(base_df):
     assert 'columns' not in diffs
     assert diffs.get('index') is not None
     assert '3' in diffs['index']
+
+
+def test_ints(base_df):
+    """Test comparison of integers."""
+    df_obs = base_df.copy()
+    df_obs['i'].iloc[:2] = [3, 2]  # Change a couple values
+    diffs = df_compare(df_obs=df_obs, df_exp=base_df)
+    assert 'rows' not in diffs
+    assert 'columns' not in diffs
+    assert 'index' not in diffs
+    assert diffs.get('int') is not None
+    assert isinstance(diffs['int'], str)
