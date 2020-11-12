@@ -15,7 +15,8 @@ def base_dict():
         "i": [0, 1, 2],
         "f": [0.0, np.nan, 2.0],
         "d": ["2018-01-01", "2019-01-01", "2020-01-01"],
-        "s": ["0", "1", "2"]
+        "s": ["0", "1", "2"],
+        "b": [False, True, True],
     }
     return d
 
@@ -89,8 +90,18 @@ def test_ints(base_df):
     df_obs = base_df.copy()
     df_obs['i'].iloc[:2] = [3, 2]  # Change a couple values
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
+    assert all([k not in diffs for k in ['rows', 'columns', 'index']])
+    assert diffs.get('int') is not None
+    assert isinstance(diffs['int'], str)
+
+
+def test_bools(base_df):
+    df_obs = base_df.copy()
+    df_obs['b'].iloc[:2] = [True, True]  # Change a couple values
+    diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert 'rows' not in diffs
     assert 'columns' not in diffs
     assert 'index' not in diffs
-    assert diffs.get('int') is not None
-    assert isinstance(diffs['int'], str)
+    assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int']])
+    assert diffs.get('bool') is not None
+    assert isinstance(diffs['bool'], str)
