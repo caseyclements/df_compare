@@ -152,8 +152,8 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
         dfx_exp = dfx_exp.loc[:, ~mask_dtypes]
 
     # 4. Index
-    index_obs = set(df_obs.index)
-    index_exp = set(df_exp.index)
+    index_obs = set(dfx_obs.index)
+    index_exp = set(dfx_exp.index)
     if ('rows' in diffs) or (index_obs != index_exp):
         diffs['index'] = describe_index_diffs(index_obs, index_exp)
         logger.warning(diffs['index'])
@@ -192,7 +192,7 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
 
     # 9. NaNs
     dfx_nan_obs = dfx_obs.isna()
-    dfx_nan_exp = df_exp.isna()
+    dfx_nan_exp = dfx_exp.isna()
     mask_nan = dfx_nan_obs != dfx_nan_exp
     if np.any(mask_nan):
         diffs['nan'] = describe_diffs(dfx_obs, dfx_exp, mask_nan.any(axis=1), name='nans', n_rows=n_show)
