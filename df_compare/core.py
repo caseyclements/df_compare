@@ -5,6 +5,15 @@ import logging
 
 logger = logging.getLogger('df_compare')
 
+
+def describe_diffs(df_obs, df_exp, mask, name='', n_rows=5):
+    """ Show first few rows that differ between two dataframes, according to boolean mask."""
+    df_prev_obs = df_obs.loc[mask].iloc[:n_rows]
+    df_prev_exp = df_exp.loc[mask].iloc[:n_rows]
+    return '\n'.join([f'{name} are different: first few rows of diffs:',
+                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
+
+
 def describe_row_diffs(df_obs, df_exp):
     return f'rows differ: df_obs has {len(df_obs)}. df_exp has {len(df_exp)}'
 
@@ -46,6 +55,10 @@ def describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float, n_rows=5):
                       'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
 
 
+def describe_nan_diffs(dfx_nan_obs, dfx_nan_exp, mask_nan, n_rows=5):
+    return describe_diffs(dfx_nan_obs, dfx_nan_exp, mask_nan, name='nan', n_rows=n_rows)
+
+
 def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs):
     """ Descriptive comparison of two dataframes along a number of dimensions.
 
@@ -68,23 +81,19 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
       7. floats ('float'): Select float columns and compare with numpy.is_close
       8. datetimes: ('datetime'): Select date-like columns and compare by equality.
       9. objects / strings ('object'): Select object columns and compare by equality.
-      10. NaNs ('nan'): Compare location of NaNs
+      10. NaNs ('nan'): Compare location of NaNs, NaT, NA  (isna)
 
-     TODO NOTE: Comparison of NA is likely to cause unexpected behaviour in the short term
-     as Pandas moves from 0.2x to 1.x
-     See: https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html
-     vs:  https://pandas.pydata.org/pandas-docs/version/0.24.2/user_guide/missing_data.html
 
     :param df_obs: (DataFrame) 1st to compare
     :param df_exp: (DataFrame) 2nd to compare
-    :param n_show: number of examples used to preview differences (typically rows)
+    :param n_show: (int) number of examples used to preview differences (typically rows)
+    :param rtol: (float) The relative tolerance parameter, as used in numpy.isclose
+    :param atol: (float) The absolute tolerance parameter, as used in numpy.isclose
     :return: (dict) dictionary describing differences.
 
     TODO IMPLEMENT
-      6. Floats (need tolerance)
       7. Datetimes
       8. Objects (typically strings)
-      9. NaNs
       ..
       10. sort_by
       11. ignore_index
@@ -92,7 +101,15 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
 
 
     As we proceed with tests, in order for further tests to make sense,
-    we take the intersections across axes. Of columns first. Then optionally, of rows.
+    we take slice the dataframe by intersections across axes.
+    This is done first by column name, and then optionally by index.
+
+    NOTE: Comparison of NA is likely to cause unexpected behaviour in the short term
+     as Pandas moves from 0.2x to 1.x
+     Pandas 1.0 introduce Nullable Integer Type, pd.Int64Dtype, 'Int64'
+     See: https://pandas.pydata.org/pandas-docs/stable/user_guide/integer_na.html
+     See: https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html
+     vs:  https://pandas.pydata.org/pandas-docs/version/0.24.2/user_guide/missing_data.html
     """
 
     diffs = {}
@@ -154,7 +171,7 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     dfx_int_exp = dfx_exp.select_dtypes(include=['int'])
     mask_int = (dfx_int_obs != dfx_int_exp).any(axis=1)
     if np.any(mask_int):
-        diffs['int'] = describe_int_diffs(dfx_int_obs, dfx_int_exp, mask_int)
+        diffs['int'] = describe_int_diffs(dfx_int_obs, dfx_int_exp, mask_int, n_rows=n_show)
         logger.warning(diffs['int'])
 
     # 6. Booleans
@@ -162,18 +179,24 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     dfx_bool_exp = dfx_exp.select_dtypes(include=['bool'])
     mask_bool = (dfx_bool_obs != dfx_bool_exp).any(axis=1)
     if np.any(mask_bool):
-        diffs['bool'] = describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool)
+        diffs['bool'] = describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool, n_rows=n_show)
         logger.warning(diffs['bool'])
 
     # 7. Floats
-    dummy_val = np.finfo('float').max
     dfx_float_obs = dfx_obs.select_dtypes(include=['float'])
     dfx_float_exp = dfx_exp.select_dtypes(include=['float'])
     mask_float = np.isclose(dfx_float_obs, dfx_float_exp, rtol=rtol, atol=atol, equal_nan=True)
     if not np.all(mask_float):
-        diffs['float'] = describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float)
+        diffs['float'] = describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float, n_rows=n_show)
         logging.warning(diffs['float'])
 
+    # 9. NaNs
+    dfx_nan_obs = dfx_obs.isna()
+    dfx_nan_exp = df_exp.isna()
+    mask_nan = dfx_nan_obs != dfx_nan_exp
+    if np.any(mask_nan):
+        diffs['nan'] = describe_diffs(dfx_obs, dfx_exp, mask_nan.any(axis=1), name='nans', n_rows=n_show)
+        logging.warning(diffs['nan'])
 
 
     diffs['complete'] = True

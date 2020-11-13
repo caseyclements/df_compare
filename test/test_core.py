@@ -12,11 +12,11 @@ warnings.filterwarnings(action='ignore', category=pd.core.common.SettingWithCopy
 def base_dict():
     """Simple dict to make DataFrames from. Has 4 dtypes"""
     d = {
-        "i": [0, 1, 2],
-        "f": [0.0, np.nan, 2.0],
-        "d": ["2018-01-01", "2019-01-01", "2020-01-01"],
-        "s": ["0", "1", "2"],
-        "b": [False, True, True],
+        'i': [0, 1, 2],
+        'f': [0.0, np.nan, 2.0],
+        'd': pd.Series(['2018-01-01', '2019-01-01', '2020-01-01'], dtype='datetime64[ns]'),
+        's': ['0', '1', '2'],
+        'b': [False, True, True],
     }
     return d
 
@@ -110,3 +110,24 @@ def test_floats(base_df):
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int', 'bool']])
     assert 'floats differ:' in diffs.get('float')
+
+
+def test_nan(base_df):
+    # No difference when values are different, but nan is same place
+    df_obs = base_df.copy()
+    df_obs['f'] = [10, np.nan, 10.0]
+    diffs = df_compare(df_obs=df_obs, df_exp=base_df)
+    assert 'nan' not in diffs
+
+    # Differences, plus NaT, and optionally Nullable Integer
+    df_exp = base_df.copy()
+    if pd.__version__ >= '1.0':
+        df_exp['Int64'] = pd.array([0, 1, None])
+        df_obs['Int64'] = pd.array([0, 1, 2], dtype=pd.Int64Dtype())
+    df_obs.loc[0, 'd'] = pd.NaT
+
+    diffs = df_compare(df_obs=df_obs, df_exp=df_exp)
+    assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int', 'bool']])
+    assert 'float' in diffs
+    assert 'nan' in diffs
+    assert 'nans are different:' in diffs.get('nan')
