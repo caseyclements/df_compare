@@ -57,7 +57,7 @@ def test_columns(base_df):
 
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert 'rows' not in diffs
-    assert diffs['columns'] == f"columns differ: cols_not_in_obs: []. cols_not_in_exp: ['s_copy']."
+    assert diffs['columns'] == f"columns are different: 1 total. (first few) not_in_obs: []. not_in_exp: ['s_copy']."
 
 
 def test_dtypes(base_df):
@@ -109,7 +109,7 @@ def test_floats(base_df):
     df_obs['f'].iloc[2] = 2.5
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
     assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int', 'bool']])
-    assert 'floats differ:' in diffs.get('float')
+    assert 'floats are different:' in diffs.get('float')
 
 
 def test_nan(base_df):

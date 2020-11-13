@@ -6,59 +6,6 @@ import logging
 logger = logging.getLogger('df_compare')
 
 
-def describe_diffs(df_obs, df_exp, mask, name='', n_rows=5):
-    """ Show first few rows that differ between two dataframes, according to boolean mask."""
-    df_prev_obs = df_obs.loc[mask].iloc[:n_rows]
-    df_prev_exp = df_exp.loc[mask].iloc[:n_rows]
-    return '\n'.join([f'{name} are different: first few rows of diffs:',
-                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
-
-
-def describe_row_diffs(df_obs, df_exp):
-    return f'rows differ: df_obs has {len(df_obs)}. df_exp has {len(df_exp)}'
-
-
-def describe_column_diffs(cols_obs, cols_exp):
-    cols_not_in_exp = sorted(cols_obs - cols_exp)
-    cols_not_in_obs = sorted(cols_exp - cols_obs)
-    return f'columns differ: cols_not_in_obs: {cols_not_in_obs}. cols_not_in_exp: {cols_not_in_exp}.'
-
-
-def describe_dtype_diffs(df_dtypes_diff, n_rows=5):
-    return f'dtypes differ: first few rows of dtype diffs:\n{repr(df_dtypes_diff.iloc[:n_rows])}'
-
-
-def describe_index_diffs(index_obs, index_exp):
-    idx_not_in_exp = index_obs - index_exp
-    idx_not_in_obs = index_exp - index_obs
-    return f'indexes differ: idx_not_in_obs: {idx_not_in_obs}. idx_not_in_exp: {idx_not_in_exp}.'
-
-
-def describe_int_diffs(dfx_int_obs, dfx_int_exp, mask_int, n_rows=5):
-    df_prev_obs = dfx_int_obs.loc[mask_int].iloc[:n_rows]
-    df_prev_exp = dfx_int_exp.loc[mask_int].iloc[:n_rows]
-    return '\n'.join([f'ints differ: first few rows of diffs:',
-                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
-
-
-def describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool, n_rows=5):
-    df_prev_obs = dfx_bool_obs.loc[mask_bool].iloc[:n_rows]
-    df_prev_exp = dfx_bool_exp.loc[mask_bool].iloc[:n_rows]
-    return '\n'.join([f'bools differ: first few rows of diffs:',
-                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
-
-
-def describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float, n_rows=5):
-    df_prev_obs = dfx_float_obs.loc[~mask_float].iloc[:n_rows]
-    df_prev_exp = dfx_float_exp.loc[~mask_float].iloc[:n_rows]
-    return '\n'.join([f'floats differ: first few rows of diffs:',
-                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
-
-
-def describe_nan_diffs(dfx_nan_obs, dfx_nan_exp, mask_nan, n_rows=5):
-    return describe_diffs(dfx_nan_obs, dfx_nan_exp, mask_nan, name='nan', n_rows=n_rows)
-
-
 def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs):
     """ Descriptive comparison of two dataframes along a number of dimensions.
 
@@ -120,14 +67,14 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     n_rows_obs = len(df_obs)
     n_rows_exp = len(df_exp)
     if n_rows_obs != n_rows_exp:
-        diffs['rows'] = describe_row_diffs(df_obs, df_exp)
+        diffs['rows'] = describe_diffs_in_len(df_obs, df_exp)
         logger.warning(diffs['rows'])
 
     # 2. Columns
     cols_obs = set(df_obs.columns)
     cols_exp = set(df_exp.columns)
     if cols_obs != cols_exp:
-        diffs['columns'] = describe_column_diffs(cols_obs, cols_exp)
+        diffs['columns'] = describe_diffs_in_sets(cols_obs, cols_exp, name='columns', n_show=n_show)
         logger.warning(diffs['columns'])
 
     #  Continue with Intersection of columns
@@ -145,8 +92,9 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     mask_dtypes = df_dtypes.obs != df_dtypes.exp
     df_dtypes_diff = df_dtypes.loc[mask_dtypes]
     if len(df_dtypes_diff) > 0:
-        diffs['dtypes'] = describe_dtype_diffs(df_dtypes_diff, n_rows=n_show)
+        diffs['dtypes'] = f'dtypes differ: first few rows of dtype diffs:\n{repr(df_dtypes_diff.head(n_show))}'
         logger.warning(diffs['dtypes'])
+
         #  Continue with Intersection
         dfx_obs = dfx_obs.loc[:, ~mask_dtypes]
         dfx_exp = dfx_exp.loc[:, ~mask_dtypes]
@@ -155,8 +103,9 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     index_obs = set(dfx_obs.index)
     index_exp = set(dfx_exp.index)
     if ('rows' in diffs) or (index_obs != index_exp):
-        diffs['index'] = describe_index_diffs(index_obs, index_exp)
+        diffs['index'] = describe_diffs_in_sets(index_obs, index_exp, name='indexes', n_show=n_show)
         logger.warning(diffs['index'])
+
         #  Continue with Intersection of columns
         index_common = index_obs.intersection(index_exp)
         dfx_obs = dfx_obs.loc[index_common]
@@ -171,7 +120,7 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     dfx_int_exp = dfx_exp.select_dtypes(include=['int'])
     mask_int = (dfx_int_obs != dfx_int_exp).any(axis=1)
     if np.any(mask_int):
-        diffs['int'] = describe_int_diffs(dfx_int_obs, dfx_int_exp, mask_int, n_rows=n_show)
+        diffs['int'] = describe_diffs_in_values(dfx_int_obs, dfx_int_exp, mask_int, name='ints', n_show=5)
         logger.warning(diffs['int'])
 
     # 6. Booleans
@@ -179,15 +128,15 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     dfx_bool_exp = dfx_exp.select_dtypes(include=['bool'])
     mask_bool = (dfx_bool_obs != dfx_bool_exp).any(axis=1)
     if np.any(mask_bool):
-        diffs['bool'] = describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool, n_rows=n_show)
+        diffs['bool'] = describe_diffs_in_values(dfx_bool_obs, dfx_bool_exp, mask_bool, name='bools', n_show=n_show)
         logger.warning(diffs['bool'])
 
     # 7. Floats
     dfx_float_obs = dfx_obs.select_dtypes(include=['float'])
     dfx_float_exp = dfx_exp.select_dtypes(include=['float'])
-    mask_float = np.isclose(dfx_float_obs, dfx_float_exp, rtol=rtol, atol=atol, equal_nan=True)
-    if not np.all(mask_float):
-        diffs['float'] = describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float, n_rows=n_show)
+    mask_float = ~np.isclose(dfx_float_obs, dfx_float_exp, rtol=rtol, atol=atol, equal_nan=True)
+    if np.any(mask_float):
+        diffs['float'] = describe_diffs_in_values(dfx_float_obs, dfx_float_exp, mask_float, name='floats', n_show=n_show)
         logging.warning(diffs['float'])
 
     # 9. NaNs
@@ -195,9 +144,29 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     dfx_nan_exp = dfx_exp.isna()
     mask_nan = dfx_nan_obs != dfx_nan_exp
     if np.any(mask_nan):
-        diffs['nan'] = describe_diffs(dfx_obs, dfx_exp, mask_nan.any(axis=1), name='nans', n_rows=n_show)
+        diffs['nan'] = describe_diffs_in_values(dfx_obs, dfx_exp, mask_nan.any(axis=1), name='nans', n_show=n_show)
         logging.warning(diffs['nan'])
 
 
     diffs['complete'] = True
     return diffs
+
+
+def describe_diffs_in_values(df_obs, df_exp, mask, name='', n_show=5):
+    """ Show first few rows that differ between two dataframes, according to boolean mask."""
+    df_prev_obs = df_obs.loc[mask].head(n_show)
+    df_prev_exp = df_exp.loc[mask].head(n_show)
+    return '\n'.join([f'{name} are different: first few rows of diffs:',
+                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
+
+
+def describe_diffs_in_sets(obs, exp, name='', n_show=5):
+    not_in_exp = sorted(obs - exp)
+    not_in_obs = sorted(exp - obs)
+    n_diffs = len(not_in_exp) + len(not_in_obs)
+    return (f'{name} are different: {n_diffs} total. (first few) ' +
+            f'not_in_obs: {not_in_obs[:n_show]}. not_in_exp: {not_in_exp[:n_show]}.')
+
+
+def describe_diffs_in_len(df_obs, df_exp):
+    return f'rows differ: df_obs has {len(df_obs)}. df_exp has {len(df_exp)}'
