@@ -26,7 +26,7 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
       5. integers ('int'): Select int columns and compare by equality.
       6. booleans ('bool'): Select bool columns and compare by equality.
       7. floats ('float'): Select float columns and compare with numpy.is_close
-      8. datetimes: ('datetime'): Select date-like columns and compare by equality.
+      8. dates: ('date'): Select date-like columns and compare by calendar date
       9. objects / strings ('object'): Select object columns and compare by equality.
       10. NaNs ('nan'): Compare location of NaNs, NaT, NA  (isna)
 
@@ -39,13 +39,9 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
     :return: (dict) dictionary describing differences.
 
     TODO IMPLEMENT
-      7. Datetimes
-      8. Objects (typically strings)
-      ..
       10. sort_by
       11. ignore_index
       12. option to stop after index
-
 
     As we proceed with tests, in order for further tests to make sense,
     we take slice the dataframe by intersections across axes.
@@ -77,8 +73,7 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
         diffs['columns'] = describe_diffs_in_sets(cols_obs, cols_exp, name='columns', n_show=n_show)
         logger.warning(diffs['columns'])
 
-    #  Continue with Intersection of columns
-    if cols_obs != cols_obs:
+        #  Continue with Intersection of columns
         cols_common = cols_obs.intersection(cols_exp)
         dfx_obs = df_obs[cols_common]
         dfx_exp = df_exp[cols_common]
@@ -139,7 +134,28 @@ def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs
         diffs['float'] = describe_diffs_in_values(dfx_float_obs, dfx_float_exp, mask_float, name='floats', n_show=n_show)
         logging.warning(diffs['float'])
 
-    # 9. NaNs
+    # 8. Dates
+    dfx_dt_obs = dfx_obs.select_dtypes(include=['datetime'])
+    dfx_dt_exp = dfx_exp.select_dtypes(include=['datetime'])
+    dfx_dt_obs = dfx_dt_obs.fillna(pd.Timestamp.max)  # Nat != NaT so we fill with dummy value
+    dfx_dt_exp = dfx_dt_exp.fillna(pd.Timestamp.max)
+    mask_dt = pd.Series(dtype=bool)
+    for c in dfx_dt_obs:
+        mask_dt = (dfx_dt_obs[c].dt.date != dfx_dt_exp[c].dt.date) | mask_dt
+    if np.any(mask_dt):
+        diffs['datetime'] = describe_diffs_in_values(dfx_dt_obs, dfx_dt_exp, mask_dt, name='datetimes', n_show=n_show)
+        logging.warning(diffs['datetime'])
+
+    # 9. Objects (Typically strings)
+    # todo This is naive, and has room for improvement for introduction of StringDtype of pandas 1.0
+    dfx_obj_obs = dfx_obs.select_dtypes(include=['object'])
+    dfx_obj_exp = dfx_exp.select_dtypes(include=['object'])
+    mask_obj = (dfx_obj_obs != dfx_obj_exp).any(axis=1)
+    if np.any(mask_obj):
+        diffs['object'] = describe_diffs_in_values(dfx_obj_obs, dfx_obj_exp, mask_obj, name='objects', n_show=n_show)
+        logger.warning(diffs['object'])
+
+    # 10. NaNs
     dfx_nan_obs = dfx_obs.isna()
     dfx_nan_exp = dfx_exp.isna()
     mask_nan = dfx_nan_obs != dfx_nan_exp
