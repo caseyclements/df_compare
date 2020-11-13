@@ -14,6 +14,7 @@ At it's core is a function that compares a number of aspects of two dataframes.
 7. Datetimes
 8. Objects (typically strings)
 9. NaNs
+10. Booleans
 
 For each dimension, if differences are found, a key is included in the diffs dictionary that is returned.
 The value of that key (e.g. 'nrows') would be a string description (e.g. 'observed contains 5 rows. expected 10.)

@@ -99,9 +99,14 @@ def test_bools(base_df):
     df_obs = base_df.copy()
     df_obs['b'].iloc[:2] = [True, True]  # Change a couple values
     diffs = df_compare(df_obs=df_obs, df_exp=base_df)
-    assert 'rows' not in diffs
-    assert 'columns' not in diffs
-    assert 'index' not in diffs
     assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int']])
     assert diffs.get('bool') is not None
     assert isinstance(diffs['bool'], str)
+
+
+def test_floats(base_df):
+    df_obs = base_df.copy()
+    df_obs['f'].iloc[2] = 2.5
+    diffs = df_compare(df_obs=df_obs, df_exp=base_df)
+    assert all([k not in diffs for k in ['rows', 'columns', 'index', 'int', 'bool']])
+    assert 'floats differ:' in diffs.get('float')

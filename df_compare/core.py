@@ -5,7 +5,6 @@ import logging
 
 logger = logging.getLogger('df_compare')
 
-
 def describe_row_diffs(df_obs, df_exp):
     return f'rows differ: df_obs has {len(df_obs)}. df_exp has {len(df_exp)}'
 
@@ -29,18 +28,25 @@ def describe_index_diffs(index_obs, index_exp):
 def describe_int_diffs(dfx_int_obs, dfx_int_exp, mask_int, n_rows=5):
     df_prev_obs = dfx_int_obs.loc[mask_int].iloc[:n_rows]
     df_prev_exp = dfx_int_exp.loc[mask_int].iloc[:n_rows]
-    return '\n'.join([f'ints differ: first few rows of int diffs:',
+    return '\n'.join([f'ints differ: first few rows of diffs:',
                       'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
 
 
 def describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool, n_rows=5):
     df_prev_obs = dfx_bool_obs.loc[mask_bool].iloc[:n_rows]
     df_prev_exp = dfx_bool_exp.loc[mask_bool].iloc[:n_rows]
-    return '\n'.join([f'bools differ: first few rows of bool diffs:',
+    return '\n'.join([f'bools differ: first few rows of diffs:',
                       'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
 
 
-def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
+def describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float, n_rows=5):
+    df_prev_obs = dfx_float_obs.loc[~mask_float].iloc[:n_rows]
+    df_prev_exp = dfx_float_exp.loc[~mask_float].iloc[:n_rows]
+    return '\n'.join([f'floats differ: first few rows of diffs:',
+                      'observed', repr(df_prev_obs), 'expected', repr(df_prev_exp)])
+
+
+def df_compare(df_obs, df_exp, n_show=5, rtol=1.e-5, atol=1.e-8, *args, **kwargs):
     """ Descriptive comparison of two dataframes along a number of dimensions.
 
     For each difference, provides a description to aid debugging.
@@ -63,6 +69,11 @@ def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
       8. datetimes: ('datetime'): Select date-like columns and compare by equality.
       9. objects / strings ('object'): Select object columns and compare by equality.
       10. NaNs ('nan'): Compare location of NaNs
+
+     TODO NOTE: Comparison of NA is likely to cause unexpected behaviour in the short term
+     as Pandas moves from 0.2x to 1.x
+     See: https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html
+     vs:  https://pandas.pydata.org/pandas-docs/version/0.24.2/user_guide/missing_data.html
 
     :param df_obs: (DataFrame) 1st to compare
     :param df_exp: (DataFrame) 2nd to compare
@@ -153,6 +164,16 @@ def df_compare(df_obs, df_exp, n_show=5, *args, **kwargs):
     if np.any(mask_bool):
         diffs['bool'] = describe_bool_diffs(dfx_bool_obs, dfx_bool_exp, mask_bool)
         logger.warning(diffs['bool'])
+
+    # 7. Floats
+    dummy_val = np.finfo('float').max
+    dfx_float_obs = dfx_obs.select_dtypes(include=['float'])
+    dfx_float_exp = dfx_exp.select_dtypes(include=['float'])
+    mask_float = np.isclose(dfx_float_obs, dfx_float_exp, rtol=rtol, atol=atol, equal_nan=True)
+    if not np.all(mask_float):
+        diffs['float'] = describe_float_diffs(dfx_float_obs, dfx_float_exp, mask_float)
+        logging.warning(diffs['float'])
+
 
 
     diffs['complete'] = True
