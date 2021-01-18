@@ -1,0 +1,40 @@
+language: python
+
+env:
+  matrix:
+    - PYTHON=3.5 NUMPY=1.11 COVERAGE='false'
+    - PYTHON=3.8 NUMPY=1.13 COVERAGE='true'
+
+install:
+  # Install conda
+  - sudo apt-get update
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+
+  # Install dependencies
+  - conda create -n test-environment python=$PYTHON
+  - source activate test-environment
+  - conda install --file requiirements.txt 
+
+  # Install package in develop mode
+  #- python setup.py develop
+  - pip install --no-deps -e .
+
+script:
+  - if [[ $COVERAGE == 'true' ]]; then 
+        py.test --cov --cov-report=html -vv -s test; 
+    else
+        py.test -vv -s test; 
+    fi
+
+after_success:
+  - coverage report --show-missing
+  - pip install coveralls
+  - coveralls
+
+#notifications:
+#  email: false
