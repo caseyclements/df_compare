@@ -2,8 +2,8 @@ language: python
 
 env:
   matrix:
-    - PYTHON=3.5 NUMPY=1.11 COVERAGE='false'
-    - PYTHON=3.8 NUMPY=1.13 COVERAGE='true'
+    - PYTHON=3.6 COVERAGE='true'
+    - PYTHON=3.9 COVERAGE='true'
 
 install:
   # Install conda
@@ -18,7 +18,7 @@ install:
   # Install dependencies
   - conda create -n test-environment python=$PYTHON
   - source activate test-environment
-  - conda install --file requiirements.txt 
+  - conda install --file requirements.txt
 
   # Install package in develop mode
   #- python setup.py develop
