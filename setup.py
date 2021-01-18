@@ -28,7 +28,6 @@ CLASSIFIERS = """\
 Development Status :: 3 - Alpha
 Programming Language :: Python
 Intended Audience :: Developers
-Intended Audience :: Pandas users
 Topic :: Scientific/Engineering
 Operating System :: OS Independent
 """
